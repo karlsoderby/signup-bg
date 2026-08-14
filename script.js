@@ -28,11 +28,25 @@ const ROSTER = {
   ],
 };
 
-// ---- Storage backend: Firebase if configured, else localStorage (this device only) ----
+// ---- Storage backend: GitHub repo (signups.json) if a token is configured, ----
+// ---- else localStorage (this device only). ----
 const LOCAL_KEY = "bg-signups-v1";
 let state = {}; // { key: "yes" | "no" }
-let dbRef = null;
-const usingFirebase = typeof firebaseConfig !== "undefined" && firebaseConfig;
+const usingGitHub =
+  typeof GITHUB_CONFIG !== "undefined" && GITHUB_CONFIG && GITHUB_CONFIG.token;
+
+function b64ToUtf8(b64) {
+  const binary = atob(b64.replace(/\n/g, ""));
+  const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+  return new TextDecoder("utf-8").decode(bytes);
+}
+
+function utf8ToB64(str) {
+  const bytes = new TextEncoder().encode(str);
+  let binary = "";
+  bytes.forEach((b) => (binary += String.fromCharCode(b)));
+  return btoa(binary);
+}
 
 function loadLocal() {
   try {
@@ -46,30 +60,93 @@ function saveLocal() {
   localStorage.setItem(LOCAL_KEY, JSON.stringify(state));
 }
 
+function showBanner(text) {
+  const banner = document.getElementById("status-banner");
+  banner.textContent = text;
+  banner.classList.remove("hidden");
+}
+
+function hideBanner() {
+  document.getElementById("status-banner").classList.add("hidden");
+}
+
+function contentsUrl() {
+  return `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.path}`;
+}
+
+async function fetchState() {
+  const res = await fetch(`${contentsUrl()}?ref=${GITHUB_CONFIG.branch}`, {
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${GITHUB_CONFIG.token}`,
+    },
+  });
+  if (!res.ok) throw new Error(`Could not load sign-ups (${res.status})`);
+  const json = await res.json();
+  state = JSON.parse(b64ToUtf8(json.content));
+  render();
+}
+
+async function commitChange(key, value, attempt = 0) {
+  const headers = {
+    Accept: "application/vnd.github+json",
+    Authorization: `Bearer ${GITHUB_CONFIG.token}`,
+  };
+  const getRes = await fetch(`${contentsUrl()}?ref=${GITHUB_CONFIG.branch}`, { headers });
+  if (!getRes.ok) throw new Error(`Could not read current data (${getRes.status})`);
+  const getJson = await getRes.json();
+  const remoteState = JSON.parse(b64ToUtf8(getJson.content));
+  remoteState[key] = value;
+
+  const putRes = await fetch(contentsUrl(), {
+    method: "PUT",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      message: `Sign-up: ${key} -> ${value}`,
+      content: utf8ToB64(JSON.stringify(remoteState, null, 2) + "\n"),
+      sha: getJson.sha,
+      branch: GITHUB_CONFIG.branch,
+    }),
+  });
+
+  if (putRes.status === 409 && attempt < 3) {
+    return commitChange(key, value, attempt + 1);
+  }
+  if (!putRes.ok) throw new Error(`Could not save (${putRes.status})`);
+
+  state = remoteState;
+  render();
+}
+
 function setAnswer(key, value) {
-  if (usingFirebase) {
-    dbRef.child(key).set(value);
+  const previous = state[key];
+  state[key] = value;
+  render();
+
+  if (usingGitHub) {
+    commitChange(key, value).catch((err) => {
+      console.error(err);
+      state[key] = previous;
+      render();
+      showBanner("Could not save — check your connection and try again.");
+    });
   } else {
-    state[key] = value;
     saveLocal();
-    render();
   }
 }
 
 function init() {
-  const banner = document.getElementById("status-banner");
-  if (usingFirebase) {
-    firebase.initializeApp(firebaseConfig);
-    dbRef = firebase.database().ref("signups");
-    dbRef.on("value", (snapshot) => {
-      state = snapshot.val() || {};
-      render();
+  if (usingGitHub) {
+    fetchState().catch((err) => {
+      console.error(err);
+      showBanner("Could not load sign-ups — check your connection and reload.");
     });
+    setInterval(() => {
+      fetchState().catch(() => {});
+    }, 8000);
   } else {
     state = loadLocal();
-    banner.textContent =
-      "Shared sign-ups aren't enabled yet — your answer is only saved on this device.";
-    banner.classList.remove("hidden");
+    showBanner("Shared sign-ups aren't enabled yet — your answer is only saved on this device.");
     render();
   }
 }

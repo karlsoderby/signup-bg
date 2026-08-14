@@ -43,10 +43,9 @@
 
   <p id="status-banner" class="status-banner hidden"></p>
 
-  <!-- Firebase (shared, live sign-ups). If not configured, falls back to this-device-only storage. -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-  <script src="firebase-config.js"></script>
+  <!-- Shared, live sign-ups stored directly in this GitHub repo (signups.json). -->
+  <!-- Falls back to this-device-only storage if no token is configured. -->
+  <script src="github-config.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
