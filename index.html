@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Match Sign-up</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <header class="topbar">
+    <h1>Match Sign-up</h1>
+    <div class="counters">
+      <span id="goalie-count" class="pill">Goalies 0/2</span>
+      <span id="player-count" class="pill">Players 0/20</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="group">
+      <h2>Goalies</h2>
+      <ul id="goalie-list" class="name-list"></ul>
+    </section>
+
+    <section class="group">
+      <h2>Players</h2>
+      <ul id="player-list" class="name-list"></ul>
+    </section>
+  </main>
+
+  <!-- Popup -->
+  <div id="overlay" class="overlay hidden">
+    <div class="modal">
+      <p id="modal-name" class="modal-name"></p>
+      <p class="modal-question">Are you in?</p>
+      <div class="modal-actions">
+        <button id="btn-yes" class="btn btn-yes">YES</button>
+        <button id="btn-no" class="btn btn-no">NO</button>
+      </div>
+      <button id="btn-cancel" class="btn-cancel">Cancel</button>
+    </div>
+  </div>
+
+  <p id="status-banner" class="status-banner hidden"></p>
+
+  <!-- Firebase (shared, live sign-ups). If not configured, falls back to this-device-only storage. -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
